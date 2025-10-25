@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Salesman</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom style & Font Inter -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .scrollable-card {
+            max-height: 500px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .whitespace-pre-wrap {
+            white-space: pre-wrap;
+        }
+        .unit-select {
+            appearance: none; /* Hide default dropdown arrow */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209L10%2012L13%209%22%20stroke%3D%22%234B5563%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            padding-right: 2rem;
+        }
+        /* Style untuk input kuantitas di mobile */
+        @media (max-width: 767px) {
+            #product-list input[type="number"] {
+                width: 100%; /* Lebar penuh di mobile */
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="app" class="max-w-6xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-700"> Order Salesman</h1>
+            <p class="text-gray-600 mt-2">Semakin cepat Anda menyelesaikan order, semakin efisien pekerjaan Anda .</p>
+            <!-- Elemen user-info telah dihapus di sini -->
+        </header>
+
+        <div id="loading-indicator" class="text-center p-8 text-xl font-medium text-gray-500">
+            sabar ee...
+        </div>
+
+        <div id="main-content" class="hidden">
+            <div class="lg:grid lg:grid-cols-3 lg:gap-8">
+                <!-- Kolom 1: Daftar Produk -->
+                <div class="lg:col-span-2 mb-8 lg:mb-0">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Daftar Produk Tersedia</h2>
+                        
+                        <!-- Kolom Search Baru -->
+                        <div class="mb-4">
+                            <input type="text" id="product-search" placeholder="Cari berdasarkan nama atau ID produk..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div id="product-list" class="space-y-4 scrollable-card">
+                            <!-- Products will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kolom 2: Keranjang Order & Input Customer -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white p-6 rounded-xl shadow-lg sticky top-8">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Keranjang Order</h2>
+
+                        <div class="mb-4">
+                            <label for="customer-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Pelanggan <span class="text-red-500">*</span></label>
+                            <input type="text" id="customer-name" placeholder="Masukkan Nama Pelanggan" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+
+                        <p id="cart-empty-message" class="text-gray-500 italic text-sm mb-4 min-h-[30px]">Keranjang kosong. Tambahkan produk!</p>
+
+                        <div id="cart-items" class="space-y-3 mb-4">
+                            <!-- Cart items will be dynamically loaded here -->
+                        </div>
+
+                        <div class="border-t pt-4 mt-4 space-y-2">
+                            <p class="font-bold text-gray-800">Total Pengambilan Barang:</p>
+                            <div id="cart-total-units" class="text-sm space-y-1">
+                                <!-- Unit totals will be injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Tombol Submit Order -->
+                        <button id="submit-order-btn" class="mt-4 w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition duration-200 shadow-md disabled:bg-gray-400" disabled>
+                            Submit Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kolom 3: Daftar Orderan Terbaru (di bawah) -->
+            <div class="mt-10">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Orderan Terbaru (Real-Time)</h2>
+                    <div id="recent-orders" class="space-y-4 scrollable-card">
+                        <p class="text-gray-500 italic text-sm" id="no-orders-message">Belum ada order yang dicatat.</p>
+                        <!-- Recent orders will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal for Status/Error Message (Instead of alert()) -->
+            <div id="app-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+                    <h3 id="modal-title" class="text-xl font-bold mb-3 text-gray-800">Status</h3>
+                    <p id="modal-body" class="text-gray-600 mb-4"></p>
+                    <button id="modal-close-btn" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Tutup</button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- Developer Tag -->
+    <footer class="mt-10 text-center text-xs text-gray-500">
+        <p>Dikembangkan oleh Ismail Agussalim</p>
+    </footer>
+
+    <!-- FIREBASE AND APP LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Atur log level untuk debugging
+        setLogLevel('Debug');
+
+        // Global Firebase Variables (Provided by Canvas Environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth;
+        let userId = 'anon-user'; // Default placeholder until auth is ready
+
+        // State Aplikasi
+        let cart = {}; // { compoundId: { product, unit, quantity, compoundId } }
+        let unitTotals = {}; // { 'CARTON': 0, 'BAG/PACK': 0, 'PCS': 0 }
+        let isAuthReady = false;
+        let searchQuery = ''; // State untuk pencarian
+
+        // Definisi Unit baru sesuai permintaan: CARTON, BAG/PACK, PCS
+        const UNITS = ['CARTON', 'BAG/PACK', 'PCS']; 
+        
+        // Data Produk Mock (Harga dan Stock dipertahankan di sini untuk internal/perhitungan, 
+        // tetapi hanya stok yang dihilangkan dari tampilan produk)
+        const MOCK_PRODUCTS = [
+            { id: '4.010102.051', name: 'Cola Assorted Bag 12x50', price: 65000, stock: 150 },
+            { id: '4.010102.081', name: 'Cola Assorted Lollipop Hanger Max 6x30', price: 45000, stock: 200 },
+            { id: '4.010202.021', name: 'Cola Candy Assorted Bag 20x40', price: 72000, stock: 120 },
+            { id: '4.010102.048', name: 'Cola Candy Renceng 20x50', price: 28000, stock: 250 },
+            { id: '4.010102.080', name: 'Cola Lollipop Hanger Max 6x30', price: 45000, stock: 180 },
+            { id: '4.210302.002', name: 'Frio Lollipop Jar SGL 8x40', price: 55000, stock: 90 },
+            { id: '4.210402.002', name: 'Frio Lollipop Refill SGL 8x40 PROMO', price: 58000, stock: 110 },
+            { id: '4.220202.053', name: 'JN Candy Bag 12x50', price: 68000, stock: 140 },
+            { id: '4.030402.057', name: 'JN Lollipop GSM Hanger Max 6x30', price: 42000, stock: 190 },
+            { id: '4.030402.054', name: 'JN Lollipop Pocket Size 60x3 MT', price: 22000, stock: 300 },
+            { id: '4.160402.002', name: 'Kata Oma Telur Gabus Gula Aren Bag 1x24', price: 35000, stock: 175 },
+            { id: '4.160402.001', name: 'Kata Oma Telur Gabus Jagung Bakar Bag 24x50gr', price: 85000, stock: 100 },
+            { id: '4.160402.003', name: 'Kata Oma Telur Gabus Keju Bag 1x24', price: 35000, stock: 160 },
+            { id: '4.080401.001', name: 'Kiko Ice Stick Hijau 15x10 @70ml', price: 18000, stock: 280 },
+            { id: '4.080401.004', name: 'Kiko Ice Stick Jumbo 12x10 @90ml', price: 25000, stock: 220 },
+            { id: '4.080401.002', name: 'Kiko Ice Stick Merah 20x10 @50ml', price: 15000, stock: 320 },
+            { id: '4.080401.010', name: 'Kiko Ice Stick Tropical 12x10 @90ml', price: 25000, stock: 210 },
+            { id: '4.140902.038', name: 'Lemonilo Brownies Crispy Cheese Pouch 1x12', price: 12000, stock: 350 },
+            { id: '4.140902.037', name: 'Lemonilo Brownies Crispy Chocolate Pouch 1x12', price: 12000, stock: 340 },
+            { id: '4.140902.084', name: 'Lemonilo Brownies Crispy Strawberry Cheese Pouch 1x12', price: 12000, stock: 330 },
+            { id: '4.140402.014', name: 'Lemonilo Chimi Keripik Ubi Jagung Bakar Renceng 6x10', price: 10000, stock: 400 },
+            { id: '4.140402.012', name: 'Lemonilo Chimi Keripik Ubi Rasa Jagung Bakar 1x24', price: 38000, stock: 130 },
+            { id: '4.140402.086', name: 'Lemonilo Chimi Keripik Ubi Rasa Jagung Bakar Family Pack 1x12x85gr Bag MT', price: 95000, stock: 80 },
+            { id: '4.140402.017', name: 'Lemonilo Chimi Keripik Ubi Rasa Jagung Balado 1x24', price: 38000, stock: 125 },
+            { id: '4.140102.066', name: 'Lemonilo Chimi Keripik Ubi Rasa Karamel Mentega 1x24', price: 38000, stock: 145 },
+            { id: '4.140402.050', name: 'Lemonilo Mie Ayam Bawang 20x60 gr MT', price: 55000, stock: 180 },
+            { id: '4.140402.049', name: 'Lemonilo Mie Goreng 20x65 gr MT', price: 58000, stock: 170 },
+            { id: '4.140402.072', name: 'Lemonilo Mie Pedas Korea 20x68 gr MT', price: 60000, stock: 160 },
+            { id: '4.040402.203', name: 'Milkita Emas 6x50 GT', price: 48000, stock: 200 },
+            { id: '4.040402.318', name: 'Milkita Candy Assorted Bag 20x40 (Special)', price: 75000, stock: 110 },
+            { id: '4.040401.153', name: 'Milkita Candy Assorted Bag Premium 20x30', price: 68000, stock: 130 },
+            { id: '4.040302.319', name: 'Milkita Candy Jar 8x100', price: 90000, stock: 75 },
+            { id: '4.040402.316', name: 'Milkita Candy Melon Bag Premium 20x30 (Special)', price: 70000, stock: 120 },
+            { id: '4.040402.315', name: 'Milkita Candy Milk Bag Premium 20x30 (Special)', price: 70000, stock: 120 },
+            { id: '4.040401.162', name: 'Milkita Candy Mix Renceng 20x30', price: 32000, stock: 240 },
+            { id: '4.040402.317', name: 'Milkita Candy Pocket Size 6x20 MT', price: 18000, stock: 350 },
+            { id: '4.040402.314', name: 'Milkita Candy Strawberry Bag Premium 20x30 (Special)', price: 70000, stock: 120 },
+            { id: '4.220202.001', name: 'Milkita Fun Pack 12x3 MT', price: 30000, stock: 200 },
+            { id: '4.050302.227', name: 'Milkita Lollipop Assorted Bag Premium 30x12x9g (Special)', price: 85000, stock: 95 },
+            { id: '4.050901.264', name: 'Milkita Lollipop Jar Max 8x(30+2) Promo', price: 92000, stock: 70 },
+            { id: '4.050102.261', name: 'Milkita Lollipop OMG Hanger Max 6x30', price: 40000, stock: 210 },
+            { id: '4.050402.263', name: 'Milkita Lollipop Refill OMG Max 8x(30+3)', price: 60000, stock: 150 },
+            { id: '4.050402.266', name: 'Milkita Lollipop Refill SCM Max 8x(30+3) PROMO Special', price: 62000, stock: 145 },
+            { id: '4.050102.279', name: 'Milkita Lollipop SCM Hanger Max 6x30', price: 40000, stock: 205 },
+            { id: '4.200402.005', name: 'Milkita Milki OMG 60x3 MT', price: 20000, stock: 280 },
+            { id: '4.200402.004', name: 'Milkita Milki SCM 60x3 MT', price: 20000, stock: 270 },
+            { id: '4.070102.065', name: 'Milkita Pasta Asst. Cokelat Vanilla Hanger Max 6x30x15gr', price: 48000, stock: 180 },
+            { id: '4.070102.062', name: 'Milkita Pasta Cokelat Hanger Max 6x30x15gr', price: 48000, stock: 190 },
+            { id: '4.070102.063', name: 'Milkita Pasta Vanilla Hanger Max 6x30x15gr', price: 48000, stock: 185 },
+            { id: '4.090602.006', name: 'Pino Ice Cup Bag Assorted 12x6', price: 45000, stock: 160 },
+            { id: '4.090602.003', name: 'Pino Ice Cup Bag PMG MT 12x6', price: 48000, stock: 150 },
+            { id: '4.090602.025', name: 'Pino Ice Cup Pack Assorted 18x4', price: 55000, stock: 120 },
+            { id: '4.090602.024', name: 'Pino Ice Cup Pack PMG 18x4', price: 58000, stock: 115 },
+            { id: '4.010102.033', name: 'Split Candy Renceng 20x50', price: 27000, stock: 230 },
+            { id: '4.010102.086', name: 'Split Lollipop Lemon Hanger Max 6x30', price: 45000, stock: 170 },
+            { id: '4.010102.070', name: 'Split Lollipop Mango Hanger 6x36', price: 48000, stock: 165 },
+            { id: '4.020402.017', name: 'Super Zuper Mix Bag 12x50', price: 68000, stock: 100 },
+        ];
+
+        // --- UTILITY FUNCTIONS ---
+
+        // Fungsi untuk format mata uang (dipertahankan untuk fungsi internal seperti harga produk)
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(number);
+        };
+
+        // Fungsi untuk menampilkan modal kustom (pengganti alert())
+        const showModal = (title, message) => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').textContent = message;
+            document.getElementById('app-modal').classList.remove('hidden');
+            document.getElementById('app-modal').classList.add('flex');
+        };
+
+        document.getElementById('modal-close-btn').addEventListener('click', () => {
+            document.getElementById('app-modal').classList.add('hidden');
+            document.getElementById('app-modal').classList.remove('flex');
+        });
+
+        // --- AUTH & FIREBASE INITIALIZATION ---
+
+        const initializeFirebase = async () => {
+            if (!firebaseConfig) {
+                console.error("Firebase configuration is missing.");
+                showModal("Error Konfigurasi", "Konfigurasi Firebase tidak ditemukan. Aplikasi tidak dapat berjalan.");
+                document.getElementById('loading-indicator').textContent = 'Error: Konfigurasi Firebase hilang.';
+                return;
+            }
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 1. Authentication
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Signed in with custom token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Auth State Changed. User ID:", userId);
+                        // Baris yang menyuntikkan user ID ke UI telah dihapus
+                        isAuthReady = true;
+
+                        // Start rendering and listening after auth is ready
+                        renderProductList();
+                        listenToOrders();
+                        document.getElementById('loading-indicator').classList.add('hidden');
+                        document.getElementById('main-content').classList.remove('hidden');
+
+                    } else {
+                        // This case should be handled by signInAnonymously
+                        console.log("User is signed out.");
+                        userId = 'signed-out-anon';
+                        isAuthReady = true;
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error initializing Firebase or signing in:", error);
+                showModal("Error Initialization", `Gagal menginisialisasi aplikasi. Coba refresh. Detail: ${error.message}`);
+            }
+        };
+
+        // --- RENDERING FUNCTIONS ---
+
+        const renderProductList = () => {
+            const productListEl = document.getElementById('product-list');
+            productListEl.innerHTML = ''; // Clear previous list
+
+            // Filter produk berdasarkan searchQuery
+            const filteredProducts = MOCK_PRODUCTS.filter(product => 
+                product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                product.id.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+            if (filteredProducts.length === 0) {
+                productListEl.innerHTML = '<p class="text-gray-500 italic p-4">Tidak ada produk yang cocok dengan pencarian Anda.</p>';
+                return;
+            }
+
+            filteredProducts.forEach(product => {
+                const productCard = document.createElement('div');
+                // Menggunakan layout responsif untuk penyesuaian unit
+                productCard.className = 'flex flex-col md:flex-row items-start md:items-center justify-between p-4 border border-gray-200 rounded-lg transition duration-150 hover:bg-gray-50 space-y-3 md:space-y-0';
+                
+                // Generate Unit Dropdown
+                const unitOptions = UNITS.map(unit => 
+                    `<option value="${unit}">${unit}</option>`
+                ).join('');
+
+                // Content
+                productCard.innerHTML = `
+                    <div class="flex-grow w-full md:w-auto">
+                        <p class="text-base font-medium text-gray-900">${product.name}</p>
+                        <p class="text-xs text-gray-500">ID: ${product.id} - Harga: ${formatRupiah(product.price)}</p>
+                    </div>
+                    <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                        <select id="unit-select-${product.id}" class="unit-select p-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[120px]">
+                            ${unitOptions}
+                        </select>
+                        <!-- Kolom Quantity -->
+                        <input type="number" id="qty-input-${product.id}" value="1" min="1" class="w-16 p-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-blue-500 focus:border-blue-500">
+                        <!-- Akhir Kolom Quantity -->
+                        <button data-id="${product.id}" class="add-to-cart-btn px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition duration-150 shadow-md whitespace-nowrap">
+                            + Keranjang
+                        </button>
+                    </div>
+                `;
+                productListEl.appendChild(productCard);
+            });
+
+            // Attach event listeners to all '+' buttons
+            productListEl.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.id;
+                    const unitSelect = document.getElementById(`unit-select-${productId}`);
+                    const qtyInput = document.getElementById(`qty-input-${productId}`); // Get the new input
+                    
+                    const unit = unitSelect ? unitSelect.value : UNITS[0]; // Get selected unit
+                    // Ambil nilai kuantitas dari input, pastikan minimal 1
+                    const rawQuantity = qtyInput ? qtyInput.value : '1';
+                    const quantity = Math.max(1, parseInt(rawQuantity, 10)); 
+
+                    if (isNaN(quantity) || quantity < 1) {
+                         showModal("Kuantitas Tidak Valid", "Kuantitas harus berupa angka positif minimal 1.");
+                         return;
+                    }
+                    
+                    addProductToCart(productId, unit, quantity);
+                });
+            });
+        };
+
+        const renderCart = () => {
+            const cartItemsEl = document.getElementById('cart-items');
+            const cartTotalUnitsEl = document.getElementById('cart-total-units'); 
+            const emptyMessageEl = document.getElementById('cart-empty-message'); 
+            const submitBtn = document.getElementById('submit-order-btn');
+
+            cartItemsEl.innerHTML = '';
+            unitTotals = UNITS.reduce((acc, unit) => ({ ...acc, [unit]: 0 }), {}); // Reset total unit per kategori
+            let totalRupiah = 0; // Hitung total rupiah untuk disimpan ke DB
+
+            const cartKeys = Object.keys(cart);
+            const customerNameFilled = document.getElementById('customer-name').value.trim() !== '';
+            
+            // Hitung total unit dan total rupiah
+            cartKeys.forEach(compoundId => {
+                const item = cart[compoundId];
+                const itemTotalRupiah = item.product.price * item.quantity;
+                
+                unitTotals[item.unit] += item.quantity; // Tambahkan ke total unit per kategori
+                totalRupiah += itemTotalRupiah; // Tambahkan ke total rupiah
+            });
+
+            const isCartValid = cartKeys.length > 0 && customerNameFilled;
+
+
+            if (cartKeys.length === 0) {
+                emptyMessageEl.classList.remove('hidden');
+            } else {
+                emptyMessageEl.classList.add('hidden');
+            }
+
+            submitBtn.disabled = !isCartValid;
+
+            // Render Item Keranjang (Tanpa Nominal Rupiah)
+            cartKeys.forEach(compoundId => {
+                const item = cart[compoundId];
+                const cartItemEl = document.createElement('div');
+                cartItemEl.className = 'flex items-center p-3 bg-gray-50 rounded-lg shadow-sm';
+                cartItemEl.innerHTML = `
+                    <div class="flex-grow">
+                        <p class="font-medium text-sm text-gray-800">${item.product.name}</p>
+                        <!-- Hapus tampilan total harga item di sini, hanya tampilkan kuantitas dan unit -->
+                        <p class="text-xs text-gray-500">${item.quantity} ${item.unit} - ID: ${item.product.id}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <!-- Tombol + / - / Hapus -->
+                        <button data-id="${compoundId}" data-action="decrease" class="cart-qty-btn text-blue-500 hover:text-blue-700 text-lg font-bold">-</button>
+                        <button data-id="${compoundId}" data-action="increase" class="cart-qty-btn text-blue-500 hover:text-blue-700 text-lg font-bold">+</button>
+                        <button data-id="${compoundId}" data-action="remove" class="cart-qty-btn text-red-500 hover:text-red-700 text-lg ml-2">
+                            &times;
+                        </button>
+                    </div>
+                `;
+                cartItemsEl.appendChild(cartItemEl);
+            });
+
+            // Update elemen total unit per kategori
+            cartTotalUnitsEl.innerHTML = UNITS.map(unit => `
+                <div class="flex justify-between text-gray-700">
+                    <span class="font-medium">${unit}:</span>
+                    <span class="font-bold text-green-600">${unitTotals[unit] || 0}</span>
+                </div>
+            `).join('');
+
+            // Pasang total rupiah sebagai atribut data (untuk submit order)
+            cartTotalUnitsEl.dataset.totalRupiah = totalRupiah;
+
+            // Attach event listeners for quantity/remove
+            cartItemsEl.querySelectorAll('.cart-qty-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const { id, action } = e.currentTarget.dataset;
+                    updateCartQuantity(id, action);
+                });
+            });
+
+            // Check input to enable/disable buttons
+            document.getElementById('customer-name').addEventListener('input', () => {
+                const customerNameFilled = document.getElementById('customer-name').value.trim() !== '';
+                const isReady = cartKeys.length > 0 && customerNameFilled;
+                submitBtn.disabled = !isReady;
+            });
+        };
+
+        const renderRecentOrders = (orders) => {
+            const recentOrdersEl = document.getElementById('recent-orders');
+            const noOrdersMessage = document.getElementById('no-orders-message');
+            recentOrdersEl.innerHTML = '';
+
+            if (orders.length === 0) {
+                noOrdersMessage.classList.remove('hidden');
+                return;
+            } else {
+                noOrdersMessage.classList.add('hidden');
+            }
+
+            orders.forEach(order => {
+                const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('id-ID') : 'N/A';
+                
+                // Hitung total unit per kategori untuk tampilan order terbaru
+                const unitsSummary = UNITS.map(unit => {
+                    const total = order.items.filter(item => item.unit === unit).reduce((sum, item) => sum + item.quantity, 0);
+                    return total > 0 ? `${total} ${unit}` : '';
+                }).filter(Boolean).join(', ');
+
+                const totalUnits = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+                const orderCard = document.createElement('div');
+                orderCard.className = 'p-4 border border-gray-200 bg-gray-50 rounded-lg';
+                orderCard.innerHTML = `
+                    <p class="text-sm font-semibold text-gray-800">Order ID: <span class="font-normal text-xs text-gray-600">${order.id}</span></p>
+                    <p class="text-lg font-bold text-blue-700 mt-1">${order.customerName}</p>
+                    <div class="mt-1 text-sm">
+                        <p>Total Barang: <span class="font-bold text-green-600">${unitsSummary || totalUnits + ' Unit'}</span></p>
+                        <p class="text-xs text-gray-500">(Total Rupiah: ${formatRupiah(order.totalAmount)})</p>
+                        <p>Salesman ID: <span class="font-medium text-gray-500 text-xs">${order.salesmanId.substring(0, 10)}...</span></p>
+                        <p>Tanggal: <span class="font-medium text-gray-500">${date}</span></p>
+                        <ul class="list-disc list-inside mt-2 text-xs text-gray-600 space-y-0.5 border-t pt-2 mt-2">
+                            ${order.items.map(item => `<li>${item.name} (${item.quantity} ${item.unit || 'unit'})</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                recentOrdersEl.appendChild(orderCard);
+            });
+        };
+
+        // --- CART LOGIC ---
+
+        const getProductById = (id) => MOCK_PRODUCTS.find(p => p.id === id);
+
+        // Menggunakan compoundId (productId|unit) sebagai kunci keranjang
+        // Menerima parameter quantity
+        const addProductToCart = (productId, unit, quantity) => {
+            const product = getProductById(productId);
+            if (!product || quantity < 1) return;
+
+            const compoundId = `${productId}|${unit}`;
+
+            if (cart[compoundId]) {
+                cart[compoundId].quantity += quantity;
+            } else {
+                cart[compoundId] = { product, unit, quantity, compoundId };
+            }
+            renderCart();
+        };
+
+        const updateCartQuantity = (compoundId, action) => {
+            if (!cart[compoundId]) return;
+
+            if (action === 'increase') {
+                cart[compoundId].quantity += 1;
+            } else if (action === 'decrease') {
+                cart[compoundId].quantity -= 1;
+                if (cart[compoundId].quantity <= 0) {
+                    delete cart[compoundId];
+                }
+            } else if (action === 'remove') {
+                delete cart[compoundId];
+            }
+            renderCart();
+        };
+
+        const clearCart = () => {
+            cart = {};
+            document.getElementById('customer-name').value = '';
+            renderCart();
+        };
+
+        // --- FIREBASE DATA OPERATIONS ---
+
+        const listenToOrders = () => {
+            if (!isAuthReady || !db) {
+                console.warn("Firestore not ready or authenticated. Cannot start listener.");
+                return;
+            }
+
+            // Path: /artifacts/{appId}/public/data/orders
+            const ordersCollectionPath = `artifacts/${appId}/public/data/orders`;
+            const ordersRef = collection(db, ordersCollectionPath);
+
+            // Fetch and listen to changes in the public 'orders' collection
+            onSnapshot(ordersRef, (snapshot) => {
+                const orders = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); // Sort newest first
+
+                console.log("Real-time orders updated:", orders.length);
+                renderRecentOrders(orders);
+            }, (error) => {
+                console.error("Error listening to orders:", error);
+                showModal("Error Real-Time", `Gagal memuat data order real-time. Detail: ${error.message}`);
+            });
+        };
+
+        const submitOrder = async () => {
+            const customerNameInput = document.getElementById('customer-name');
+            const totalRupiah = document.getElementById('cart-total-units').dataset.totalRupiah; // Ambil total Rupiah tersembunyi
+            
+            const customerName = customerNameInput.value.trim();
+            const submitBtn = document.getElementById('submit-order-btn');
+
+            if (!customerName) {
+                showModal("Input Kurang", "Nama Pelanggan wajib diisi.");
+                return;
+            }
+            if (Object.keys(cart).length === 0) {
+                showModal("Keranjang Kosong", "Keranjang order tidak boleh kosong.");
+                return;
+            }
+            if (!isAuthReady || !db || userId === 'anon-user') {
+                showModal("Akses Ditolak", "Status salesman belum terautentikasi. Coba refresh halaman.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Memproses Order...';
+
+            const orderItems = Object.values(cart).map(item => ({
+                id: item.product.id,
+                name: item.product.name,
+                price: item.product.price, // Harga tetap disimpan ke DB
+                quantity: item.quantity,
+                unit: item.unit
+            }));
+
+            const newOrder = {
+                customerName: customerName,
+                salesmanId: userId,
+                items: orderItems,
+                // Menyimpan totalAmount dan unitTotals ke database
+                totalAmount: parseFloat(totalRupiah), 
+                unitTotals: unitTotals, // Simpan total per kategori unit
+                createdAt: serverTimestamp()
+            };
+
+            try {
+                // Path: /artifacts/{appId}/public/data/orders
+                const ordersCollectionPath = `artifacts/${appId}/public/data/orders`;
+                const docRef = await addDoc(collection(db, ordersCollectionPath), newOrder);
+
+                console.log("Order submitted with ID: ", docRef.id);
+                showModal("Order Berhasil", `Order untuk ${customerName} telah berhasil dicatat dengan ID: ${docRef.id}`);
+
+                // Reset UI after successful submission
+                clearCart();
+            } catch (error) {
+                console.error("Error submitting order:", error);
+                showModal("Error Submission", `Gagal menyimpan order. Detail: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Order';
+            }
+        };
+
+        // --- INITIAL SETUP AND EVENT LISTENERS ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebase();
+            renderCart(); // Initial render of empty cart
+            
+            // Attach main event listeners
+            document.getElementById('submit-order-btn').addEventListener('click', submitOrder);
+            
+            // Listener untuk kolom pencarian
+            document.getElementById('product-search').addEventListener('input', (e) => {
+                searchQuery = e.target.value.trim();
+                renderProductList();
+            });
+        });
+
+    </script>
+</body>
+</html>
